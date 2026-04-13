@@ -1,0 +1,1 @@
+powershell -File install-startup.ps1 -Uninstall
