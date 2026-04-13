@@ -64,6 +64,7 @@ local Socket = {
     conn      = nil,
     connected = false,
     buffer    = "",
+    disabled  = false,   -- true = LuaSocket no existe en este cliente, no reintentar
 }
 
 -- Detecta LuaSocket: algunos clientes lo exponen como global `socket`,
@@ -82,9 +83,14 @@ local function resolveSocketLib()
 end
 
 function Socket.Connect()
+    -- Si ya detectamos que LuaSocket no existe, no reintentar nunca más
+    if Socket.disabled then return false end
+
     local lib = resolveSocketLib()
     if not lib then
-        UI.Error("LuaSocket no encontrado. Requiere cliente WoW con socket habilitado.")
+        Socket.disabled = true
+        UI.Warn("LuaSocket no disponible — traducción Lua deshabilitada.")
+        UI.Warn("Usa |cffFFD700myTraductor.ahk|r con F12 para traducir sin LuaSocket.")
         return false
     end
 
@@ -195,6 +201,12 @@ function Queue.Tick(elapsed)
     -- ── Caso 2: tomar el próximo de la cola ──────────────────────
     if #Queue.pending == 0 then return end
 
+    -- Si socket está permanentemente deshabilitado, drenar la cola sin ruido
+    if Socket.disabled then
+        Queue.pending = {}
+        return
+    end
+
     local item = table.remove(Queue.pending, 1)
 
     if not Socket.connected then
@@ -232,10 +244,13 @@ SlashCmdList["MYTRADUCTOR_EN"] = function(input)
         return
     end
 
+    if Socket.disabled then
+        UI.Warn("LuaSocket no disponible. Usa |cffFFD700F12|r con AutoHotkey para traducir.")
+        return
+    end
+
     if not Socket.connected then
         if not Socket.Connect() then
-            -- Sin servidor: enviar original sin traducir
-            SendChatMessage(msg, "SAY")
             return
         end
     end
@@ -274,6 +289,8 @@ local prevLineId = 0
 
 local function incomingFilter(_, event, msg, sender, _, _, _, _, _, _, _, _, lineId)
     if not Config.translateIncoming then return end
+    -- Si LuaSocket no está disponible no tiene sentido encolar nada
+    if Socket.disabled then return end
 
     -- Deduplicación: mismo mensaje puede dispararse en varios chat frames
     if lineId == prevLineId then return end
