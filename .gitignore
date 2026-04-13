@@ -1,0 +1,19 @@
+# BadBoy — addon de referencia, no parte de este proyecto
+BadBoy/
+BadBoy_CCleaner/
+BadBoy_Guilded/
+BadBoy_Levels/
+*.rar
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db
