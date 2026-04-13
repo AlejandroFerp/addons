@@ -20,7 +20,8 @@ LIBRETRANSLATE := "http://127.0.0.1:5000"
 SOURCE         := "es"
 TARGET         := "en"
 
-; ── F12 activo en Ascension (sin restricción de ventana para máxima compatibilidad) ──
+; ── F12 solo activo cuando Ascension (WoW) tiene el foco ────────
+#IfWinActive ahk_exe Ascension.exe
 F12::
     ; Feedback inmediato: si ves este tooltip saber que AHK capturó F12
     ToolTip, [Traductor] Capturando texto...
@@ -87,6 +88,7 @@ F12::
     ClipSaved  :=
     ToolTip
 return
+#IfWinActive
 
 
 ; ================================================================
