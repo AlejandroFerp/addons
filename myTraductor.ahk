@@ -1,5 +1,5 @@
 ; ================================================================
-; myTraductor.ahk — AutoHotkey v2
+; myTraductor.ahk — AutoHotkey v1
 ;
 ; Traduce lo que escribes en el chat de WoW (ES → EN)
 ; SIN modificar el cliente de WoW.
@@ -12,122 +12,121 @@
 ;
 ; Requisito: LibreTranslate corriendo en 127.0.0.1:5000
 ; ================================================================
-#Requires AutoHotkey v2.0
+#NoEnv
+#SingleInstance Force
+SetWorkingDir %A_ScriptDir%
 
 LIBRETRANSLATE := "http://127.0.0.1:5000"
-SOURCE := "es"
-TARGET := "en"
+SOURCE         := "es"
+TARGET         := "en"
 
-; ── Solo activo cuando la ventana de WoW tiene el foco ──────────
-#HotIf WinActive("ahk_exe Wow.exe") or WinActive("ahk_exe WoW.exe")
+; ── Solo activo cuando Ascension (WoW) tiene el foco ────────────
+#IfWinActive ahk_exe Ascension.exe
 
-; F12 = traducir el texto del chat input y enviarlo
-F12:: {
-    ; 1. Seleccionar todo el texto del chat input (Ctrl+A)
-    Send "^a"
-    Sleep 60
+F12::
+    ; 1. Seleccionar todo el texto del chat input
+    Send, ^a
+    Sleep, 60
 
-    ; 2. Copiar al portapapeles (Ctrl+C)
-    oldClip := ClipboardAll()
-    A_Clipboard := ""
-    Send "^c"
-    ClipWait 1
+    ; 2. Copiar al portapapeles
+    ClipSaved := ClipboardAll
+    Clipboard =
+    Send, ^c
+    ClipWait, 1
 
-    original := Trim(A_Clipboard)
+    original := Trim(Clipboard)
 
-    ; Restaurar portapapeles original al terminar
     if (original = "") {
-        A_Clipboard := oldClip
-        Send "{Enter}"   ; sin texto → enviar normal
+        Clipboard  := ClipSaved
+        ClipSaved  :=
+        Send, {Enter}
         return
     }
 
     ; 3. Traducir vía LibreTranslate
-    translated := Translate(original, SOURCE, TARGET)
+    translated := Translate(original)
 
     ; 4. Si falla la traducción, enviar el original sin cambios
     if (translated = "") {
-        A_Clipboard := oldClip
-        Send "{Enter}"
+        Clipboard  := ClipSaved
+        ClipSaved  :=
+        Send, {Enter}
         return
     }
 
     ; 5. Borrar el texto original del chat input
-    Send "^a"
-    Sleep 30
-    Send "{Delete}"
-    Sleep 30
+    Send, ^a
+    Sleep, 30
+    Send, {Delete}
+    Sleep, 30
 
-    ; 6. Pegar la traducción (más rápido que tipear letra a letra)
-    A_Clipboard := translated
-    Send "^v"
-    Sleep 80
+    ; 6. Pegar la traducción
+    Clipboard := translated
+    Send, ^v
+    Sleep, 80
 
     ; 7. Enviar el mensaje
-    Send "{Enter}"
+    Send, {Enter}
 
     ; 8. Restaurar portapapeles
-    Sleep 100
-    A_Clipboard := oldClip
-}
+    Sleep, 100
+    Clipboard  := ClipSaved
+    ClipSaved  :=
+return
 
-#HotIf   ; Desactivar el contexto WoW
+#IfWinActive
 
 
 ; ================================================================
-; Translate(text, source, target) → string | ""
-; Llama directamente a la API REST de LibreTranslate.
+; Translate(text) → string traducido | "" si falla
 ; ================================================================
-Translate(text, source, target) {
-    global LIBRETRANSLATE
+Translate(text) {
+    global LIBRETRANSLATE, SOURCE, TARGET
 
-    body := '{"q":"' . EscapeJSON(text) . '",'
-          . '"source":"' . source . '",'
-          . '"target":"' . target . '",'
-          . '"format":"text"}'
+    body := "{""q"":""" . EscapeJSON(text) . ""","
+           . """source"":""" . SOURCE . ""","
+           . """target"":""" . TARGET . ""","
+           . """format"":""text""}"
 
-    req := ComObject("WinHttp.WinHttpRequest.5.1")
+    req := ComObjCreate("WinHttp.WinHttpRequest.5.1")
     req.Open("POST", LIBRETRANSLATE . "/translate", false)
     req.SetRequestHeader("Content-Type", "application/json")
-    req.SetTimeouts(3000, 3000, 3000, 3000)   ; 3 s timeout
+    req.SetTimeouts(3000, 3000, 3000, 3000)
 
     try {
         req.Send(body)
-    } catch {
+    } catch e {
         return ""
     }
 
-    if (req.Status != 200) {
+    if (req.Status != 200)
         return ""
-    }
 
-    ; Parsear "translatedText" del JSON de respuesta
-    ; Ejemplo: {"translatedText":"hello how are you"}
-    if RegExMatch(req.ResponseText, '"translatedText"\s*:\s*"((?:[^"\\]|\\.)*)"', &m) {
-        return UnescapeJSON(m[1])
-    }
+    ; Parsear {"translatedText":"..."}
+    if RegExMatch(req.ResponseText, """translatedText""\s*:\s*""((?:[^""\\]|\\.)*)""", m)
+        return UnescapeJSON(m1)
 
     return ""
 }
 
 
 ; ================================================================
-; Helpers JSON mínimos (sin dependencias externas)
+; Helpers JSON mínimos
 ; ================================================================
 EscapeJSON(str) {
-    str := StrReplace(str, "\",  "\\")
-    str := StrReplace(str, '"',  '\"')
-    str := StrReplace(str, "`n", "\n")
-    str := StrReplace(str, "`r", "\r")
-    str := StrReplace(str, "`t", "\t")
+    str := StrReplace(str, "\",   "\\")
+    str := StrReplace(str, """",  "\""")
+    str := StrReplace(str, "`n",  "\n")
+    str := StrReplace(str, "`r",  "\r")
+    str := StrReplace(str, "`t",  "\t")
     return str
 }
 
 UnescapeJSON(str) {
-    str := StrReplace(str, "\\n", "`n")
-    str := StrReplace(str, "\\r", "`r")
-    str := StrReplace(str, "\\t", "`t")
-    str := StrReplace(str, '\\"', '"')
-    str := StrReplace(str, "\\\\", "\")
+    str := StrReplace(str, "\n",   "`n")
+    str := StrReplace(str, "\r",   "`r")
+    str := StrReplace(str, "\t",   "`t")
+    str := StrReplace(str, "\""",  """")
+    str := StrReplace(str, "\\",   "\")
     return str
 }
