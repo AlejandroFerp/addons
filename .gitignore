@@ -5,6 +5,9 @@ BadBoy_Guilded/
 BadBoy_Levels/
 *.rar
 
+# Ejemplos de referencia — no parte del proyecto
+examples/
+
 # Python
 __pycache__/
 *.pyc
