@@ -15,12 +15,22 @@ start "LibreTranslate" cmd /k "libretranslate --host 127.0.0.1 --port 5000 --loa
 echo  Esperando que LibreTranslate este listo...
 timeout /t 8 /nobreak >nul
 
-:: ── 2. Servidor relay ─────────────────────────────────────────────
+:: ── 2. Servidor relay (solo necesario si usas LuaSocket en Lua) ──
 echo  [2/2] Iniciando servidor relay (puerto 12345)...
 start "myTraductor Relay" cmd /k "cd /d %~dp0server && python translator_server.py"
 
+:: ── 3. AutoHotkey (traduccion via teclado, sin LuaSocket) ────────
+echo  [3/3] Iniciando AutoHotkey...
+where autohotkey >nul 2>&1
+if %errorlevel% == 0 (
+    start "myTraductor AHK" autohotkey "%~dp0myTraductor.ahk"
+    echo         AutoHotkey iniciado. Usa F12 en WoW para traducir.
+) else (
+    echo         AutoHotkey no encontrado. Descargalo de https://www.autohotkey.com
+    echo         o ejecuta myTraductor.ahk manualmente.
+)
+
 echo.
-echo  Ambos servidores iniciados.
-echo  Puedes cerrar esta ventana y abrir WoW.
+echo  Listos. Abre WoW y usa F12 para traducir.
 echo.
 pause
