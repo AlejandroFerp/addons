@@ -103,21 +103,35 @@ Translate(text) {
     req := ComObjCreate("WinHttp.WinHttpRequest.5.1")
     req.Open("POST", LIBRETRANSLATE . "/translate", false)
     req.SetRequestHeader("Content-Type", "application/json")
-    req.SetTimeouts(3000, 3000, 3000, 3000)
+    req.SetTimeouts(10000, 10000, 10000, 10000)
 
     try {
         req.Send(body)
     } catch e {
+        ToolTip, [Traductor] HTTP ERROR: %e%
+        Sleep, 3000
+        ToolTip
         return ""
     }
 
-    if (req.Status != 200)
+    status := req.Status
+    resp   := req.ResponseText
+
+    if (status != 200) {
+        ToolTip, [Traductor] HTTP %status%: %resp%
+        Sleep, 3000
+        ToolTip
         return ""
+    }
 
     ; Parsear {"translatedText":"..."}
-    if RegExMatch(req.ResponseText, """translatedText""\s*:\s*""((?:[^""\\]|\\.)*)""", m)
+    if RegExMatch(resp, """translatedText""\s*:\s*""((?:[^""\\]|\\.)*)""", m)
         return UnescapeJSON(m1)
 
+    ; Si llegamos aquí el JSON no tiene translatedText
+    ToolTip, [Traductor] JSON inesperado: %resp%
+    Sleep, 3000
+    ToolTip
     return ""
 }
 
