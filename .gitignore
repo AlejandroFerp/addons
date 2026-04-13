@@ -7,6 +7,7 @@ BadBoy_Levels/
 
 # Ejemplos de referencia — no parte del proyecto
 examples/
+ahk/
 
 # Python
 __pycache__/
