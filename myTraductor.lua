@@ -1,9 +1,9 @@
 -- ================================================================
--- myTraductor v1.1 - Addon WoW 3.3.5
+-- myTraductor v1.2 - Addon WoW 3.3.5
 --
--- Traducción BIDIRECCIONAL del chat:
---   Saliente : ES → EN  (override de SendChatMessage)
---   Entrante : EN → ES  (patrón BadBoy: ChatFrame_AddMessageEventFilter)
+-- Uso:
+--   /en <mensaje>  → traduce ES→EN y lo envía como SAY
+--   Mensajes entrantes en EN se muestran con subtítulo en ES
 --
 -- Backend : LibreTranslate   (https://github.com/LibreTranslate/LibreTranslate)
 -- Servidor: translator_server.py en localhost
@@ -22,18 +22,11 @@ local SERVER_HOST = "127.0.0.1"
 local SERVER_PORT = 12345
 local MAX_WAIT_S  = 2.0   -- Timeout máximo esperando respuesta del servidor
 
--- ----------------------------------------------------------------
--- CRÍTICO: capturar la referencia ANTES del override.
--- Si se hace después, todas las llamadas crean un loop infinito.
--- ----------------------------------------------------------------
-local _OriginalSendChatMessage = SendChatMessage
-
 
 -- ================================================================
 -- CONFIG — Comportamiento del addon (editable en tiempo de ejecución)
 -- ================================================================
 local Config = {
-    translateOutgoing = true,   -- ES→EN antes de enviar mensajes propios
     translateIncoming = true,   -- EN→ES mostrar sub-título de mensajes ajenos
 }
 
@@ -224,35 +217,38 @@ end
 
 
 -- ================================================================
--- SALIENTE — Override de SendChatMessage (ES → EN)
+-- SALIENTE — Slash command /en <mensaje>  (ES → EN → SAY)
+--
+-- El jugador escribe:  /en hola como estas
+-- El addon traduce y envía al chat como SAY: "hello how are you"
 -- ================================================================
-local OUTGOING_TYPES = {
-    SAY = true, YELL = true, PARTY = true,
-    RAID = true, GUILD = true, OFFICER = true,
-    WHISPER = true, CHANNEL = true,
-}
+SLASH_MYTRADUCTOR_EN1 = "/en"
 
-function SendChatMessage(msg, chatType, language, channel)
-    if type(msg) ~= "string" then
-        _OriginalSendChatMessage(msg, chatType, language, channel)
+SlashCmdList["MYTRADUCTOR_EN"] = function(input)
+    local msg = (input or ""):match("^%s*(.-)%s*$")  -- trim
+
+    if msg == "" then
+        UI.Warn("Uso: /en <mensaje en español>")
         return
     end
 
-    local ct = (chatType or "SAY"):upper()
-
-    if not Config.translateOutgoing or not OUTGOING_TYPES[ct] then
-        _OriginalSendChatMessage(msg, chatType, language, channel)
-        return
+    if not Socket.connected then
+        if not Socket.Connect() then
+            -- Sin servidor: enviar original sin traducir
+            SendChatMessage(msg, "SAY")
+            return
+        end
     end
 
     Queue.Push({
         direction = "O",
         msg       = msg,
         onSuccess = function(translated)
-            _OriginalSendChatMessage(translated, ct, language, channel)
+            SendChatMessage(translated, "SAY")
         end,
         onTimeout = function()
-            _OriginalSendChatMessage(msg, ct, language, channel)
+            UI.Warn("Timeout — enviando mensaje original.")
+            SendChatMessage(msg, "SAY")
         end,
     })
 end
@@ -324,7 +320,7 @@ MainFrame:RegisterEvent("PLAYER_LOGOUT")
 
 MainFrame:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == ADDON_NAME then
-        UI.Log("v1.1 cargado. Conectando al servidor LibreTranslate...")
+        UI.Log("v1.2 cargado. Conectando al servidor LibreTranslate...")
         Socket.Connect()
 
     elseif event == "PLAYER_LOGOUT" then
@@ -354,28 +350,23 @@ SlashCmdList["MYTRADUCTOR"] = function(input)
         Socket.Disconnect()
         UI.Log("Desconectado.")
 
-    elseif cmd == "saliente" or cmd == "out" then
-        Config.translateOutgoing = not Config.translateOutgoing
-        UI.Log("Traducción saliente (ES→EN): " .. (Config.translateOutgoing and "|cff44cc44ON|r" or "|cffff4444OFF|r"))
-
     elseif cmd == "entrante" or cmd == "in" then
         Config.translateIncoming = not Config.translateIncoming
-        UI.Log("Traducción entrante (EN→ES): " .. (Config.translateIncoming and "|cff44cc44ON|r" or "|cffff4444OFF|r"))
+        UI.Log("Subtítulos EN→ES: " .. (Config.translateIncoming and "|cff44cc44ON|r" or "|cffff4444OFF|r"))
 
     elseif cmd == "estado" or cmd == "status" then
         local conn = Socket.connected and "|cff44cc44CONECTADO|r" or "|cffff4444DESCONECTADO|r"
-        local out  = Config.translateOutgoing and "|cff44cc44ON|r" or "|cffff4444OFF|r"
         local inc  = Config.translateIncoming and "|cff44cc44ON|r" or "|cffff4444OFF|r"
-        UI.Log("Servidor: " .. conn .. "  |  Saliente: " .. out .. "  |  Entrante: " .. inc)
+        UI.Log("Servidor: " .. conn .. "  |  Subtítulos EN→ES: " .. inc)
         UI.Log("Cola: " .. #Queue.pending .. " pendiente(s)")
 
     elseif cmd == "ayuda" or cmd == "help" or cmd == "" then
-        UI.Log("══════ myTraductor v1.1 — Comandos ══════")
+        UI.Log("══════ myTraductor v1.2 — Comandos ══════")
+        UI.Log("  /en <mensaje>   — Traduce ES→EN y envía al chat (SAY)")
         UI.Log("  /tr conectar    — Conectar al servidor Python")
         UI.Log("  /tr desconectar — Desconectar del servidor")
-        UI.Log("  /tr saliente    — Toggle traducción saliente (ES→EN)")
-        UI.Log("  /tr entrante    — Toggle traducción entrante (EN→ES subtítulo)")
-        UI.Log("  /tr estado      — Estado de conexión y configuración")
+        UI.Log("  /tr entrante    — Toggle subtítulos EN→ES en mensajes ajenos")
+        UI.Log("  /tr estado      — Estado de conexión")
         UI.Log("  /tr ayuda       — Mostrar esta ayuda")
 
     else
@@ -383,4 +374,4 @@ SlashCmdList["MYTRADUCTOR"] = function(input)
     end
 end
 
-UI.Log("myTraductor v1.1 | LibreTranslate | /tr ayuda")
+UI.Log("myTraductor v1.2 | /en <msg> para traducir | /tr ayuda")
