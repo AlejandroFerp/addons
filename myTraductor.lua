@@ -17,10 +17,35 @@
 -- (típico en servidores privados con DLL loader — ej. winmm.dll proxy)
 -- ================================================================
 
+-- Localizamos globals frecuentes (patrón Announcer): evita lookup global en cada llamada
+local SendChatMessage    = SendChatMessage
+local GetNumRaidMembers  = GetNumRaidMembers
+local GetNumPartyMembers = GetNumPartyMembers
+local IsInInstance       = IsInInstance
+local select             = select
+
 local ADDON_NAME  = "myTraductor"
 local SERVER_HOST = "127.0.0.1"
 local SERVER_PORT = 12345
 local MAX_WAIT_S  = 2.0   -- Timeout máximo esperando respuesta del servidor
+
+
+-- ================================================================
+-- CHANNEL — Auto-detección del canal activo (patrón rescatado de Announcer)
+-- Prioridad: BATTLEGROUND > RAID > PARTY > SAY
+-- ================================================================
+local function GetAutoChannel()
+    local kind = select(2, IsInInstance())
+    if kind == "pvp" then
+        return "BATTLEGROUND"
+    elseif GetNumRaidMembers() > 0 then
+        return "RAID"
+    elseif GetNumPartyMembers() > 0 then
+        return "PARTY"
+    else
+        return "SAY"
+    end
+end
 
 
 -- ================================================================
@@ -259,11 +284,11 @@ SlashCmdList["MYTRADUCTOR_EN"] = function(input)
         direction = "O",
         msg       = msg,
         onSuccess = function(translated)
-            SendChatMessage(translated, "SAY")
+            SendChatMessage(translated, GetAutoChannel())
         end,
         onTimeout = function()
             UI.Warn("Timeout — enviando mensaje original.")
-            SendChatMessage(msg, "SAY")
+            SendChatMessage(msg, GetAutoChannel())
         end,
     })
 end
