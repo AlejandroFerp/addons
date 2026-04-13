@@ -20,13 +20,15 @@ LIBRETRANSLATE := "http://127.0.0.1:5000"
 SOURCE         := "es"
 TARGET         := "en"
 
-; ── Solo activo cuando Ascension (WoW) tiene el foco ────────────
-#IfWinActive ahk_exe Ascension.exe
-
+; ── F12 activo en Ascension (sin restricción de ventana para máxima compatibilidad) ──
 F12::
+    ; Feedback inmediato: si ves este tooltip saber que AHK capturó F12
+    ToolTip, [Traductor] Capturando texto...
+    Sleep, 60
+
     ; 1. Seleccionar todo el texto del chat input
     Send, ^a
-    Sleep, 60
+    Sleep, 80
 
     ; 2. Copiar al portapapeles
     ClipSaved := ClipboardAll
@@ -37,44 +39,54 @@ F12::
     original := Trim(Clipboard)
 
     if (original = "") {
+        ToolTip, [Traductor] Sin texto en portapapeles.
+        Sleep, 1500
+        ToolTip
         Clipboard  := ClipSaved
         ClipSaved  :=
         Send, {Enter}
         return
     }
+
+    ToolTip, [Traductor] Traduciendo: %original%
+    Sleep, 200
 
     ; 3. Traducir vía LibreTranslate
     translated := Translate(original)
 
-    ; 4. Si falla la traducción, enviar el original sin cambios
     if (translated = "") {
+        ToolTip, [Traductor] ERROR - LibreTranslate no responde. Enviando original.
+        Sleep, 2000
+        ToolTip
         Clipboard  := ClipSaved
         ClipSaved  :=
         Send, {Enter}
         return
     }
 
-    ; 5. Borrar el texto original del chat input
+    ToolTip, [Traductor] OK: %translated%
+    Sleep, 200
+
+    ; 4. Borrar el texto original del chat input
     Send, ^a
     Sleep, 30
     Send, {Delete}
     Sleep, 30
 
-    ; 6. Pegar la traducción
+    ; 5. Pegar la traducción
     Clipboard := translated
     Send, ^v
     Sleep, 80
 
-    ; 7. Enviar el mensaje
+    ; 6. Enviar el mensaje
     Send, {Enter}
 
-    ; 8. Restaurar portapapeles
+    ; 7. Restaurar portapapeles y limpiar tooltip
     Sleep, 100
     Clipboard  := ClipSaved
     ClipSaved  :=
+    ToolTip
 return
-
-#IfWinActive
 
 
 ; ================================================================
