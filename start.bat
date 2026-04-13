@@ -9,7 +9,15 @@ echo.
 
 :: ── 1. LibreTranslate ────────────────────────────────────────────
 echo  [1/2] Iniciando LibreTranslate (puerto 5000)...
-start "LibreTranslate" cmd /k "libretranslate --host 127.0.0.1 --port 5000 --load-only en,es"
+set LT_EXE=%LOCALAPPDATA%\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\Scripts\libretranslate.exe
+if not exist "%LT_EXE%" (
+    echo  ERROR: No se encontro libretranslate.exe en:
+    echo    %LT_EXE%
+    echo  Instala con: pip install libretranslate
+    pause
+    exit /b 1
+)
+start "LibreTranslate" cmd /k ""%LT_EXE%" --host 127.0.0.1 --port 5000 --load-only en,es"
 
 :: Esperar a que LibreTranslate levante antes de arrancar el relay
 echo  Esperando que LibreTranslate este listo...
