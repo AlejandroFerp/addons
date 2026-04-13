@@ -45,7 +45,6 @@ F12::
         ToolTip
         Clipboard  := ClipSaved
         ClipSaved  :=
-        Send, {Enter}
         return
     }
 
@@ -56,12 +55,11 @@ F12::
     translated := Translate(original)
 
     if (translated = "") {
-        ToolTip, [Traductor] ERROR - LibreTranslate no responde. Enviando original.
+        ToolTip, [Traductor] ERROR - LibreTranslate no responde.
         Sleep, 2000
         ToolTip
         Clipboard  := ClipSaved
         ClipSaved  :=
-        Send, {Enter}
         return
     }
 
@@ -74,15 +72,12 @@ F12::
     Send, {Delete}
     Sleep, 30
 
-    ; 5. Pegar la traducción
+    ; 5. Pegar la traducción — el usuario decide cuándo presionar Enter
     Clipboard := translated
     Send, ^v
     Sleep, 80
 
-    ; 6. Enviar el mensaje
-    Send, {Enter}
-
-    ; 7. Restaurar portapapeles y limpiar tooltip
+    ; 6. Restaurar portapapeles y limpiar tooltip
     Sleep, 100
     Clipboard  := ClipSaved
     ClipSaved  :=
